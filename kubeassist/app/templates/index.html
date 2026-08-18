@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KubeAssist</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #1a1d27; border-right: 1px solid #2d3148; padding: 24px 0; z-index: 100; }
+  .logo { padding: 0 20px 24px; font-size: 18px; font-weight: 700; color: #7c8dff; border-bottom: 1px solid #2d3148; }
+  .logo span { color: #e2e8f0; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; color: #94a3b8; transition: all .2s; font-size: 14px; }
+  .nav-item:hover, .nav-item.active { background: #252840; color: #7c8dff; border-left: 3px solid #7c8dff; }
+  .nav-item .icon { font-size: 18px; }
+
+  /* Main */
+  .main { margin-left: 220px; padding: 28px; min-height: 100vh; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 22px; font-weight: 600; margin-bottom: 24px; color: #f1f5f9; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; padding: 20px; }
+  .card-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; color: #7c8dff; }
+  .card-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+  /* Table */
+  .table-wrap { background: #1a1d27; border: 1px solid #2d3148; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #252840; padding: 12px 16px; text-align: left; color: #64748b; font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  td { padding: 12px 16px; border-top: 1px solid #2d3148; color: #cbd5e1; }
+  tr:hover td { background: #1e2235; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.running { background: #0d2e1f; color: #4ade80; }
+  .badge.failed  { background: #2e0d0d; color: #f87171; }
+  .badge.pending { background: #2e280d; color: #facc15; }
+  .badge.healthy  { background: #0d2e1f; color: #4ade80; }
+  .badge.unhealthy{ background: #2e0d0d; color: #f87171; }
+
+  /* Logs */
+  .log-controls { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .log-controls select, .log-controls input { background: #1a1d27; border: 1px solid #2d3148; color: #e2e8f0; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+  .log-controls button { background: #7c8dff; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .log-box { background: #0d0f16; border: 1px solid #2d3148; border-radius: 12px; padding: 16px; font-family: monospace; font-size: 12px; color: #94a3b8; height: 500px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6; }
+
+  /* Chat */
+  .chat-wrap { display: flex; flex-direction: column; height: calc(100vh - 120px); }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 75%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; }
+  .msg.user { background: #7c8dff; color: #fff; align-self: flex-end; border-radius: 12px 12px 2px 12px; }
+  .msg.bot  { background: #1a1d27; border: 1px solid #2d3148; align-self: flex-start; border-radius: 12px 12px 12px 2px; color: #cbd5e1; }
+  .msg.bot pre { background: #0d0f16; padding: 10px; border-radius: 6px; overflow-x: auto; margin-top: 8px; font-size: 12px; }
+  .msg code { background: #0d0f16; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  .chat-input-wrap { display: flex; gap: 10px; padding: 16px; background: #1a1d27; border-top: 1px solid #2d3148; border-radius: 0 0 12px 12px; }
+  .chat-input-wrap input { flex: 1; background: #0d0f16; border: 1px solid #2d3148; color: #e2e8f0; padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; }
+  .chat-input-wrap input:focus { border-color: #7c8dff; }
+  .chat-input-wrap button { background: #7c8dff; color: #fff; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .chat-input-wrap button:disabled { opacity: .5; cursor: not-allowed; }
+  .typing { color: #64748b; font-style: italic; font-size: 13px; }
+
+  .refresh-btn { background: #252840; border: 1px solid #2d3148; color: #94a3b8; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; float: right; margin-top: -4px; }
+  .refresh-btn:hover { color: #7c8dff; }
+  .error-msg { color: #f87171; font-size: 13px; padding: 12px; background: #2e0d0d; border-radius: 8px; margin-bottom: 16px; }
+  .context-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #64748b; }
+  .context-toggle input { accent-color: #7c8dff; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">Kube<span>Assist</span></div>
+  <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> Dashboard</div>
+  <div class="nav-item" onclick="showPage('deployments')"><span class="icon">🚀</span> Deployments</div>
+  <div class="nav-item" onclick="showPage('pods')"><span class="icon">📦</span> Pods</div>
+  <div class="nav-item" onclick="showPage('resources')"><span class="icon">⚡</span> Resources</div>
+  <div class="nav-item" onclick="showPage('logs')"><span class="icon">📋</span> Logs</div>
+  <div class="nav-item" onclick="showPage('chat')"><span class="icon">🤖</span> KubeAssist AI</div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-title">Dashboard <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button></div>
+    <div class="cards" id="dash-cards">
+      <div class="card"><div class="card-label">Total Pods</div><div class="card-value" id="d-pods">—</div></div>
+      <div class="card"><div class="card-label">Running</div><div class="card-value" id="d-running" style="color:#4ade80">—</div></div>
+      <div class="card"><div class="card-label">Unhealthy</div><div class="card-value" id="d-unhealthy" style="color:#f87171">—</div></div>
+      <div class="card"><div class="card-label">Deployments</div><div class="card-value" id="d-deps">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pod</th><th>Namespace</th><th>Status</th><th>Node</th><th>IP</th></tr></thead>
+        <tbody id="dash-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEPLOYMENTS -->
+  <div id="page-deployments" class="page">
+    <div class="page-title">Deployments <button class="refresh-btn" onclick="loadDeployments()">↻ Refresh</button></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Namespace</th><th>Deployment</th><th>Image</th><th>Status</th><th>Pods</th></tr></thead>
+        <tbody id="dep-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PODS -->
+  <div id="page-pods" class="page">
+    <div class="page-title">Pods <button class="refresh-btn" onclick="loadPods()">↻ Refresh</button></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pod</th><th>Namespace</th><th>Status</th><th>CPU Req</th><th>Mem Req</th><th>CPU Limit</th><th>Mem Limit</th></tr></thead>
+        <tbody id="pods-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESOURCES -->
+  <div id="page-resources" class="page">
+    <div class="page-title">Resources <button class="refresh-btn" onclick="loadResources()">↻ Refresh</button></div>
+    <div class="cards">
+      <div class="card"><div class="card-label">CPU Requested</div><div class="card-value" id="r-cpu-req">—</div><div class="card-sub" id="r-cpu-req-m"></div></div>
+      <div class="card"><div class="card-label">CPU Limit</div><div class="card-value" id="r-cpu-lim">—</div><div class="card-sub" id="r-cpu-lim-m"></div></div>
+      <div class="card"><div class="card-label">Memory Requested</div><div class="card-value" id="r-mem-req">—</div><div class="card-sub" id="r-mem-req-mi"></div></div>
+      <div class="card"><div class="card-label">Memory Limit</div><div class="card-value" id="r-mem-lim">—</div><div class="card-sub" id="r-mem-lim-mi"></div></div>
+    </div>
+  </div>
+
+  <!-- LOGS -->
+  <div id="page-logs" class="page">
+    <div class="page-title">Logs</div>
+    <div class="log-controls">
+      <input id="log-pod" placeholder="Pod name" style="flex:1">
+      <input id="log-ns" placeholder="Namespace" value="default">
+      <button onclick="loadLogs()">Fetch Logs</button>
+    </div>
+    <div class="log-box" id="log-box">Enter pod name and namespace above, then click Fetch Logs.</div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="page-chat" class="page">
+    <div class="page-title">KubeAssist AI</div>
+    <div class="table-wrap chat-wrap">
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg bot">👋 Hi! I'm KubeAssist. Ask me anything about your cluster — pod issues, kubectl commands, resource troubleshooting, and more.</div>
+      </div>
+      <div class="chat-input-wrap">
+        <label class="context-toggle"><input type="checkbox" id="use-context"> Include live cluster data</label>
+        <input id="chat-input" placeholder="Ask KubeAssist..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button id="chat-btn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== NAVIGATION =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'deployments') loadDeployments();
+  if (name === 'pods') loadPods();
+  if (name === 'resources') loadResources();
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  const res = await fetch('/api/pods');
+  const pods = await res.json();
+  if (pods.error) return;
+  const running = pods.filter(p => p.status === 'Running').length;
+  document.getElementById('d-pods').textContent = pods.length;
+  document.getElementById('d-running').textContent = running;
+  document.getElementById('d-unhealthy').textContent = pods.length - running;
+  const deps = await fetch('/api/deployments').then(r => r.json());
+  document.getElementById('d-deps').textContent = deps.length;
+  const tbody = document.getElementById('dash-table');
+  tbody.innerHTML = pods.map(p => `
+    <tr>
+      <td>${p.pod}</td>
+      <td>${p.namespace}</td>
+      <td><span class="badge ${p.status.toLowerCase()}">${p.status}</span></td>
+      <td>${p.node}</td>
+      <td>${p.pod_ip}</td>
+    </tr>`).join('');
+}
+
+// ===== DEPLOYMENTS =====
+async function loadDeployments() {
+  const deps = await fetch('/api/deployments').then(r => r.json());
+  document.getElementById('dep-table').innerHTML = deps.map(d => `
+    <tr>
+      <td>${d.namespace}</td>
+      <td>${d.name}</td>
+      <td style="font-size:11px;color:#64748b">${d.images.join('<br>')}</td>
+      <td><span class="badge ${d.healthy ? 'healthy' : 'unhealthy'}">${d.healthy ? '✓ Healthy' : '✗ Degraded'}</span></td>
+      <td>${d.running}/${d.total}</td>
+    </tr>`).join('');
+}
+
+// ===== PODS =====
+async function loadPods() {
+  const pods = await fetch('/api/pods').then(r => r.json());
+  document.getElementById('pods-table').innerHTML = pods.map(p => `
+    <tr>
+      <td>${p.pod}</td>
+      <td>${p.namespace}</td>
+      <td><span class="badge ${p.status.toLowerCase()}">${p.status}</span></td>
+      <td>${p.cpu_req}</td>
+      <td>${p.mem_req}</td>
+      <td>${p.cpu_limit}</td>
+      <td>${p.mem_limit}</td>
+    </tr>`).join('');
+}
+
+// ===== RESOURCES =====
+async function loadResources() {
+  const r = await fetch('/api/resources').then(res => res.json());
+  document.getElementById('r-cpu-req').textContent = r.cpu_req_cores + ' cores';
+  document.getElementById('r-cpu-req-m').textContent = r.cpu_req_m + 'm';
+  document.getElementById('r-cpu-lim').textContent = r.cpu_lim_cores + ' cores';
+  document.getElementById('r-cpu-lim-m').textContent = r.cpu_lim_m + 'm';
+  document.getElementById('r-mem-req').textContent = r.mem_req_gi + ' Gi';
+  document.getElementById('r-mem-req-mi').textContent = r.mem_req_mi + ' Mi';
+  document.getElementById('r-mem-lim').textContent = r.mem_lim_gi + ' Gi';
+  document.getElementById('r-mem-lim-mi').textContent = r.mem_lim_mi + ' Mi';
+}
+
+// ===== LOGS =====
+async function loadLogs() {
+  const pod = document.getElementById('log-pod').value.trim();
+  const ns = document.getElementById('log-ns').value.trim();
+  if (!pod) return;
+  document.getElementById('log-box').textContent = 'Fetching logs...';
+  const r = await fetch(`/api/logs?pod=${pod}&namespace=${ns}`).then(res => res.json());
+  document.getElementById('log-box').textContent = r.logs || r.error || 'No logs found';
+}
+
+// ===== CHAT =====
+function formatBotMsg(text) {
+  return text
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const query = input.value.trim();
+  if (!query) return;
+  const btn = document.getElementById('chat-btn');
+  const msgs = document.getElementById('chat-messages');
+
+  msgs.innerHTML += `<div class="msg user">${query}</div>`;
+  input.value = '';
+  btn.disabled = true;
+  msgs.innerHTML += `<div class="msg bot typing" id="typing">KubeAssist is thinking...</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  let context = null;
+  if (document.getElementById('use-context').checked) {
+    context = await fetch('/api/pods').then(r => r.json()).catch(() => null);
+  }
+
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, context })
+  });
+  const data = await res.json();
+
+  document.getElementById('typing').remove();
+  msgs.innerHTML += `<div class="msg bot">${formatBotMsg(data.response || data.error)}</div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+  btn.disabled = false;
+  input.focus();
+}
+
+// Load dashboard on start
+loadDashboard();
+</script>
+</body>
+</html>
