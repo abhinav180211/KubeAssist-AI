@@ -1,0 +1,36 @@
+services:
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  kubeassist:
+    image: python:3.11.13
+    container_name: kubeassist
+    depends_on:
+      - ollama
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./app:/app
+      - ./requirements.txt:/requirements.txt
+      - //c/Users/AbhinavChauhan/.kube:/root/.kube
+    working_dir: /app
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "pip install -r /requirements.txt -q &&
+               curl -LO https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl &&
+               chmod +x kubectl && mv kubectl /usr/local/bin/kubectl &&
+               python app.py"
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
