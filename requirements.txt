@@ -1,4 +1,0 @@
-langchain-ollama
-langchain-core
-flask
-flask-cors
